@@ -51,6 +51,7 @@ namespace Microcharts
                 if (notifiy != null)
                     notifiy.CollectionChanged += EntriesCollectionChanged;
                 entries = value;
+				cachedMaxValue = cachedMinValue = null;
                 DrawInvalidated?.Invoke();
             }
         }
@@ -74,14 +75,15 @@ namespace Microcharts
                 if (!this.Entries.Any())
                 {
                     return 0;
-                } 
-
+                }
+				if (cachedMinValue.HasValue)
+					return cachedMinValue.Value;
                 if (this.InternalMinValue == null)
                 {
-                    return Math.Min(0, this.Entries.Min(x => x.Value));
+					return (cachedMinValue = Math.Min(0, this.Entries.Min(x => x.Value))).Value;
                 } 
 
-                return Math.Min(this.InternalMinValue.Value, this.Entries.Min(x => x.Value));
+				return (cachedMinValue = Math.Min(this.InternalMinValue.Value, this.Entries.Min(x => x.Value))).Value;
             }
 
             set => this.InternalMinValue = value;
@@ -99,18 +101,21 @@ namespace Microcharts
                 if (!this.Entries.Any()) 
                 {
                     return 0;
-                } 
-
+                }
+				if (cachedMaxValue.HasValue)
+					return cachedMaxValue.Value;
                 if (this.InternalMaxValue == null)
                 {
-                   return Math.Max(0, this.Entries.Max(x => x.Value)); 
+					return (cachedMaxValue = Math.Max(0, this.Entries.Max(x => x.Value))).Value; 
                 } 
 
-                return Math.Max(this.InternalMaxValue.Value, this.Entries.Max(x => x.Value));
+				return (cachedMaxValue = Math.Max(this.InternalMaxValue.Value, this.Entries.Max(x => x.Value))).Value;
             }
 
             set => this.InternalMaxValue = value;
         }
+		float? cachedMaxValue;
+		float? cachedMinValue;
 
         /// <summary>
         /// Gets or sets the internal minimum value (that can be null).
@@ -209,8 +214,9 @@ namespace Microcharts
 
 
 
-        private void EntriesCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        protected virtual void EntriesCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
+			cachedMaxValue = cachedMinValue = null;
             //Eventually notifiy what changed so animations can happen
             DrawInvalidated?.Invoke();
         }

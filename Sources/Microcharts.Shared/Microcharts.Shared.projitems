@@ -26,5 +26,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Entry.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Layouts\RadarChart.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extensions\CanvasExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Layouts\LineSeriesChart.cs" />
   </ItemGroup>
 </Project>

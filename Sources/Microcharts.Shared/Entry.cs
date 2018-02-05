@@ -30,6 +30,8 @@ namespace Microcharts
                 /// </summary>
                 /// <value>The value.</value>
                 public float Value { get; }
+				
+				public float Value2 {get;set;}
 
                 /// <summary>
                 /// Gets or sets the caption label.
