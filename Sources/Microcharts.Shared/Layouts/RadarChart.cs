@@ -4,6 +4,7 @@
 namespace Microcharts
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
     using SkiaSharp;
 
@@ -12,39 +13,27 @@ namespace Microcharts
     /// 
     /// A radar chart.
     /// </summary>
-    public class RadarChart : Chart
+    public class RadarChart : LineChart
     {
-        #region Constants
-
         private const float Epsilon = 0.01f;
-
-        #endregion
-
-        #region Properties
-
-        /// <summary>
-        /// Gets or sets the size of the line.
-        /// </summary>
-        /// <value>The size of the line.</value>
-        public float LineSize { get; set; } = 3;
-
+        
         public SKColor BorderLineColor { get; set; } = SKColors.LightGray.WithAlpha(110);
 
         public float BorderLineSize { get; set; } = 2;
 
-        public PointMode PointMode { get; set; } = PointMode.Circle;
-
-        public float PointSize { get; set; } = 14;
-
-        private float AbsoluteMinimum => this.Entries.Select(x => x.Value).Concat(new[] { this.MaxValue, this.MinValue, this.InternalMinValue ?? 0 }).Min(x => Math.Abs(x));
-
-        private float AbsoluteMaximum => this.Entries.Select(x => x.Value).Concat(new[] { this.MaxValue, this.MinValue, this.InternalMinValue ?? 0 }).Max(x => Math.Abs(x));
-
-        private float ValueRange => this.AbsoluteMaximum - this.AbsoluteMinimum;
-
-        #endregion
-
-        #region Methods
+        private void DrawBorder(SKCanvas canvas, SKPoint center, float radius)
+        {
+            using (var paint = new SKPaint()
+            {
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = this.BorderLineSize,
+                Color = this.BorderLineColor,
+                IsAntialias = true,
+            })
+            {
+                canvas.DrawCircle(center, radius, paint);
+            }
+        }
 
         public override void DrawContent(SKCanvas canvas, int width, int height)
         {
@@ -62,7 +51,7 @@ namespace Microcharts
                     {
                         var hasOffset = hasLabel && hasValueLabel;
                         var captionMargin = this.LabelTextSize * 0.60f;
-                        var space = hasOffset ? captionMargin : 0;
+                        result += hasOffset ? captionMargin : 0;
 
                         if (hasLabel)
                         {
@@ -78,96 +67,119 @@ namespace Microcharts
                     return result;
                 });
 
-                var center = new SKPoint(width / 2, height / 2);
-                var radius = ((Math.Min(width, height) - (2 * Margin)) / 2) - captionHeight;
-                var rangeAngle = (float)((Math.PI * 2) / total);
-                var startAngle = (float)Math.PI;
+                var center = new SKPoint((float)width/2, (float)height/2);
 
-                var nextEntry = this.Entries.First();
-                var nextAngle = startAngle;
-                var nextPoint = this.GetPoint(nextEntry.Value, center, nextAngle, radius);
+                var radius = (Math.Min(width, height) - 2 * Margin) / 2 - captionHeight;
 
-                this.DrawBorder(canvas, center, radius);
+                var angle = 0f;
+                var sectorAngle = 360f / total;
+                var radialPoints = new List<RadialPoint>();
 
-                for (int i = 0; i < total; i++)
+                var minValue = this.Entries.Min(x => x.Value);
+                var maxValue = this.Entries.Max(x => x.Value);
+                var normalizedMax = maxValue - minValue;
+
+                foreach (var entry in this.Entries)
                 {
-                    var angle = nextAngle;
-                    var entry = nextEntry;
-                    var point = nextPoint;
+                    var normalizedValue = entry.Value - minValue;
+                    radialPoints.Add(new RadialPoint(center, normalizedValue / normalizedMax, radius , angle, sectorAngle, entry));
+                    angle += sectorAngle;
+                }
+                
+                this.DrawBorder(canvas, center, radius);
+                this.DrawLine(canvas, radialPoints, center);
+                this.DrawCircles(canvas, radialPoints, center);
+                this.DrawPoints(canvas, radialPoints);
+                this.DrawCenterBars(canvas, radialPoints, center);
+                this.DrawArea(canvas, radialPoints, center);
+                this.DrawLabels(canvas, radialPoints, center, radius);
+            }
+        }
 
-                    var nextIndex = (i + 1) % total;
-                    nextAngle = startAngle + (rangeAngle * nextIndex);
-                    nextEntry = this.Entries.ElementAt(nextIndex);
-                    nextPoint = this.GetPoint(nextEntry.Value, center, nextAngle, radius);
+        private void DrawLabels(SKCanvas canvas, IEnumerable<RadialPoint> radialPoints, SKPoint center, float radius)
+        {
+            foreach (var point in radialPoints)
+            {
+                var labelPoint = RadialPoint.GetPoint(center, point.CorrectedAngle,
+                    radius + this.LabelTextSize + (this.PointSize / 2));
+                var alignment = SKTextAlign.Right;
 
-                    // Border center bars
-                    using (var paint = new SKPaint()
-                    {
-                        Style = SKPaintStyle.Stroke,
-                        StrokeWidth = this.BorderLineSize,
-                        Color = this.BorderLineColor,
-                        IsAntialias = true,
-                    })
-                    {
-                        var borderPoint = this.GetPoint(this.MaxValue, center, angle, radius);
-                        canvas.DrawLine(point.X, point.Y, borderPoint.X, borderPoint.Y, paint);
-                    }
+                if ((Math.Abs(point.CorrectedAngle + 90) < Epsilon) || (Math.Abs(point.CorrectedAngle - 90) < Epsilon))
+                {
+                    alignment = SKTextAlign.Center;
+                }
+                else if (point.CorrectedAngle > -90 && point.CorrectedAngle < 90)
+                {
+                    alignment = SKTextAlign.Left;
+                }
 
-                    // Values points and lines
-                    using (var paint = new SKPaint()
-                    {
-                        Style = SKPaintStyle.Stroke,
-                        StrokeWidth = this.BorderLineSize,
-                        Color = entry.Color.WithAlpha((byte)(entry.Color.Alpha * 0.75f)),
-                        PathEffect = SKPathEffect.CreateDash(new[] { this.BorderLineSize, this.BorderLineSize * 2 }, 0),
-                        IsAntialias = true,
-                    })
-                    {
-                        var amount = Math.Abs(entry.Value - this.AbsoluteMinimum) / this.ValueRange;
-                        canvas.DrawCircle(center.X, center.Y, radius * amount, paint);
-                    }
+                canvas.DrawCaptionLabels(point.Entry.Label, point.Entry.TextColor, point.Entry.ValueLabel, point.Entry.Color,
+                    this.LabelTextSize, labelPoint, alignment);
+            }
+        }
 
-                    canvas.DrawGradientLine(center, entry.Color.WithAlpha(0), point, entry.Color.WithAlpha((byte)(entry.Color.Alpha * 0.75f)), this.LineSize);
-                    canvas.DrawGradientLine(point, entry.Color, nextPoint, nextEntry.Color, this.LineSize);
-                    canvas.DrawPoint(point, entry.Color, this.PointSize, this.PointMode);
+        private void DrawPoints(SKCanvas canvas, IEnumerable<RadialPoint> radialPoints)
+        {
+            foreach (var radialPoint in radialPoints)
+            {
+                canvas.DrawPoint(radialPoint.Point, radialPoint.Entry.Color, this.PointSize, this.PointMode);
+            }
+        }
 
-                    // Labels
-                    var labelPoint = this.GetPoint(this.MaxValue, center, angle, radius + this.LabelTextSize  + (this.PointSize / 2));
-                    var alignment = SKTextAlign.Left;
-
-                    if ((Math.Abs(angle - (startAngle + Math.PI)) < Epsilon) || (Math.Abs(angle - Math.PI) < Epsilon))
-                    {
-                        alignment = SKTextAlign.Center;
-                    }
-                    else if (angle > (float)(startAngle + Math.PI))
-                    {
-                        alignment = SKTextAlign.Right;
-                    }
-
-                    canvas.DrawCaptionLabels(entry.Label, entry.TextColor, entry.ValueLabel, entry.Color, this.LabelTextSize, labelPoint, alignment);
+        private void DrawCircles(SKCanvas canvas, IEnumerable<RadialPoint> radialPoints, SKPoint center)
+        {
+            using (var paint = new SKPaint
+            {
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = this.BorderLineSize,
+                Color = this.BorderLineColor,
+                PathEffect = SKPathEffect.CreateDash(new[] {this.BorderLineSize, this.BorderLineSize * 2}, 0),
+                IsAntialias = true,
+            })
+            {
+                foreach (var valueRadius in radialPoints.Select(x => x.ValueRadius).Distinct())
+                {
+                    canvas.DrawCircle(center, valueRadius, paint);
                 }
             }
         }
 
-        /// <summary>
-        /// Finds point cordinates of an entry.
-        /// </summary>
-        /// <returns>The point.</returns>
-        /// <param name="value">The value.</param>
-        /// <param name="center">The center.</param>
-        /// <param name="angle">The entry angle.</param>
-        /// <param name="radius">The radius.</param>
-        private SKPoint GetPoint(float value, SKPoint center, float angle, float radius)
+        private void DrawLine(SKCanvas canvas, IReadOnlyList<RadialPoint> points, SKPoint center)
         {
-            var amount = Math.Abs(value - this.AbsoluteMinimum) / this.ValueRange;
-            var point = new SKPoint(0, radius * amount);
-            var rotation = SKMatrix.MakeRotation(angle);
-            return center + rotation.MapPoint(point);
+            if (points.Count > 1 && this.LineMode != LineMode.None)
+            {
+                using (var paint = new SKPaint
+                {
+                    Style = SKPaintStyle.Stroke,
+                    Color = SKColors.White,
+                    StrokeWidth = this.LineSize,
+                    IsAntialias = true,
+                })
+                {
+                    this.DrawPath(canvas, points, center, paint);
+                }
+            }
         }
 
-        private void DrawBorder(SKCanvas canvas, SKPoint center, float radius)
+        private void DrawArea(SKCanvas canvas, IReadOnlyList<RadialPoint> points, SKPoint center)
         {
-            using (var paint = new SKPaint()
+            if (this.LineAreaAlpha > 0 && points.Count > 1)
+            {
+                using (var paint = new SKPaint
+                {
+                    Style = SKPaintStyle.Fill,
+                    Color = SKColors.White,
+                    IsAntialias = true,
+                })
+                {
+                    this.DrawPath(canvas, points, center, paint);
+                }
+            }
+        }
+
+        private void DrawCenterBars(SKCanvas canvas, IEnumerable<RadialPoint> radialPoints, SKPoint center)
+        {
+            using (var paint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = this.BorderLineSize,
@@ -175,10 +187,55 @@ namespace Microcharts
                 IsAntialias = true,
             })
             {
-                canvas.DrawCircle(center.X, center.Y, radius, paint);
+                foreach (var radialPoint in radialPoints)
+                {
+                    canvas.DrawGradientLine(center, radialPoint.Entry.Color.WithAlpha(0), radialPoint.Point,
+                        radialPoint.Entry.Color.WithAlpha((byte) (radialPoint.Entry.Color.Alpha * 0.75f)),
+                        this.LineSize);
+                    canvas.DrawLine(radialPoint.Point, radialPoint.BorderPoint, paint);
+                }
             }
         }
 
-        #endregion
+        private void DrawPath(SKCanvas canvas, IReadOnlyList<RadialPoint> points, SKPoint center, SKPaint paint)
+        {
+            using (var shader = this.CreateGradient(center, this.LineAreaAlpha))
+            {
+                paint.Shader = shader;
+
+                var path = new SKPath();
+
+                path.MoveTo(points.First().Point);
+
+                for (var i = 0; i < points.Count; i++)
+                {
+                    if (this.LineMode == LineMode.Spline)
+                    {
+                        var next = points[(i + 1) % points.Count];
+                        path.CubicTo(points[i].NextControlPoint, next.PreviousControlPoint, next.Point);
+                    }
+                    else if (this.LineMode == LineMode.Straight)
+                    {
+                        path.LineTo(points[(i + 1) % points.Count].Point);
+                    }
+                }
+
+                path.Close();
+
+                canvas.DrawPath(path, paint);
+            }
+        }
+        
+        private SKShader CreateGradient(SKPoint center, byte alpha = 255)
+        {
+            var rotation = SKMatrix.MakeRotationDegrees(-90, center.X, center.Y);
+            var colors = this.Entries.Select(x => x.Color.WithAlpha(alpha)).ToList();
+            colors.Add(this.Entries.First().Color.WithAlpha(alpha));
+            return SKShader.CreateSweepGradient(
+                center,
+                colors.ToArray(),
+                null,
+                rotation);
+        }
     }
 }

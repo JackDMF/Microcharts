@@ -10,7 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)Helpers\" />
-    <Folder Include="$(MSBuildThisFileDirectory)Layouts\" />
     <Folder Include="$(MSBuildThisFileDirectory)Extensions\" />
   </ItemGroup>
   <ItemGroup>
@@ -26,5 +25,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Entry.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Layouts\RadarChart.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extensions\CanvasExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers\RadialPoint.cs" />
   </ItemGroup>
 </Project>
