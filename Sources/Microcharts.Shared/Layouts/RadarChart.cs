@@ -10,30 +10,16 @@ namespace Microcharts
 
     /// <summary>
     /// ![chart](../images/Radar.png)
-    /// 
     /// A radar chart.
     /// </summary>
+    /// <inheritdoc cref="LineChart"/>
     public class RadarChart : LineChart
     {
         private const float Epsilon = 0.01f;
-        
+
         public SKColor BorderLineColor { get; set; } = SKColors.LightGray.WithAlpha(110);
 
         public float BorderLineSize { get; set; } = 2;
-
-        private void DrawBorder(SKCanvas canvas, SKPoint center, float radius)
-        {
-            using (var paint = new SKPaint()
-            {
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = this.BorderLineSize,
-                Color = this.BorderLineColor,
-                IsAntialias = true,
-            })
-            {
-                canvas.DrawCircle(center, radius, paint);
-            }
-        }
 
         public override void DrawContent(SKCanvas canvas, int width, int height)
         {
@@ -69,19 +55,17 @@ namespace Microcharts
 
                 var center = new SKPoint((float)width/2, (float)height/2);
 
-                var radius = (Math.Min(width, height) - 2 * Margin) / 2 - captionHeight;
+                var radius = (Math.Min(width, height) - 2 * this.Margin) / 2 - captionHeight;
 
                 var angle = 0f;
                 var sectorAngle = 360f / total;
                 var radialPoints = new List<RadialPoint>();
 
-                var minValue = this.Entries.Min(x => x.Value);
-                var maxValue = this.Entries.Max(x => x.Value);
-                var normalizedMax = maxValue - minValue;
+                var normalizedMax = this.MaxValue - this.MinValue;
 
                 foreach (var entry in this.Entries)
                 {
-                    var normalizedValue = entry.Value - minValue;
+                    var normalizedValue = entry.Value - this.MinValue;
                     radialPoints.Add(new RadialPoint(center, normalizedValue / normalizedMax, radius , angle, sectorAngle, entry));
                     angle += sectorAngle;
                 }
@@ -96,6 +80,20 @@ namespace Microcharts
             }
         }
 
+        private void DrawBorder(SKCanvas canvas, SKPoint center, float radius)
+        {
+            using (var paint = new SKPaint
+                               {
+                                   Style = SKPaintStyle.Stroke,
+                                   StrokeWidth = this.BorderLineSize,
+                                   Color = this.BorderLineColor,
+                                   IsAntialias = true,
+                               })
+            {
+                canvas.DrawCircle(center, radius, paint);
+            }
+        }
+
         private void DrawLabels(SKCanvas canvas, IEnumerable<RadialPoint> radialPoints, SKPoint center, float radius)
         {
             foreach (var point in radialPoints)
@@ -104,7 +102,7 @@ namespace Microcharts
                     radius + this.LabelTextSize + (this.PointSize / 2));
                 var alignment = SKTextAlign.Right;
 
-                if ((Math.Abs(point.CorrectedAngle + 90) < Epsilon) || (Math.Abs(point.CorrectedAngle - 90) < Epsilon))
+                if ((Math.Abs(point.CorrectedAngle + 90) < RadarChart.Epsilon) || (Math.Abs(point.CorrectedAngle - 90) < RadarChart.Epsilon))
                 {
                     alignment = SKTextAlign.Center;
                 }
