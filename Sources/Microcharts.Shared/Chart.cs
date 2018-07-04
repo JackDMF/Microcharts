@@ -12,6 +12,7 @@ namespace Microcharts
     public abstract class Chart
     {
         #region Properties
+        private IEnumerable<Entry> entries;
 
         /// <summary>
         /// Gets or sets the global margin.
@@ -35,32 +36,35 @@ namespace Microcharts
         /// Gets or sets the data entries.
         /// </summary>
         /// <value>The entries.</value>
-        public IEnumerable<Entry> Entries {
-            get
-            {
-                return entries;
-            }
+        public IEnumerable<Entry> Entries
+        {
+            get => this.entries;
             set
             {
-                if (entries == value)
+                if (object.Equals(this.entries, value))
+                {
                     return;
-                var oldNotify = entries as INotifyCollectionChanged;
-                if(oldNotify != null)
-                    oldNotify.CollectionChanged -= EntriesCollectionChanged;
-                var notifiy = value as INotifyCollectionChanged;
-                if (notifiy != null)
-                    notifiy.CollectionChanged += EntriesCollectionChanged;
-                entries = value;
-                DrawInvalidated?.Invoke();
+                }
+
+                if (this.entries is INotifyCollectionChanged oldNotify)
+                {
+                    oldNotify.CollectionChanged -= this.EntriesCollectionChanged;
+                }
+
+                if (value is INotifyCollectionChanged notifiy)
+                {
+                    notifiy.CollectionChanged += this.EntriesCollectionChanged;
+                }
+
+                this.entries = value;
+                this.DrawInvalidated?.Invoke();
             }
         }
 
-        IEnumerable<Entry> entries;
-
         /// <summary>
-        /// Event fires whenever the data has changed
+        /// Gets or sets the event that fires whenever the data has changed
         /// </summary>
-        public Action DrawInvalidated;
+        public Action DrawInvalidated { get; set; }
 
         /// <summary>
         /// Gets or sets the minimum value from entries. If not defined, it will be the minimum between zero and the 
@@ -207,12 +211,10 @@ namespace Microcharts
             }
         }
 
-
-
         private void EntriesCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            //Eventually notifiy what changed so animations can happen
-            DrawInvalidated?.Invoke();
+            // Eventually notify what changed so animations can happen
+            this.DrawInvalidated?.Invoke();
         }
 
         #endregion

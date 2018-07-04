@@ -12,9 +12,9 @@ namespace Microcharts
 
         public const float PI = (float)Math.PI;
 
-        private const float UprightAngle = PI / 2f;
+        private const float UprightAngle = RadialHelpers.PI / 2f;
 
-        private const float TotalAngle = 2f * PI;
+        private const float TotalAngle = 2f * RadialHelpers.PI;
 
         #endregion
 
@@ -45,23 +45,23 @@ namespace Microcharts
             }
 
             // calculate the angles
-            var startAngle = (TotalAngle * start) - UprightAngle;
-            var endAngle = (TotalAngle * end) - UprightAngle;
-            var large = endAngle - startAngle > PI ? SKPathArcSize.Large : SKPathArcSize.Small;
+            var startAngle = (RadialHelpers.TotalAngle * start) - RadialHelpers.UprightAngle;
+            var endAngle = (RadialHelpers.TotalAngle * end) - RadialHelpers.UprightAngle;
+            var large = endAngle - startAngle > RadialHelpers.PI ? SKPathArcSize.Large : SKPathArcSize.Small;
             var sectorCenterAngle = ((endAngle - startAngle) / 2f) + startAngle;
 
             // get the radius bits
             var cectorCenterRadius = ((outerRadius - innerRadius) / 2f) + innerRadius;
 
             // calculate the angle for the margins
-            var offsetR = outerRadius == 0 ? 0 : ((margin / (TotalAngle * outerRadius)) * TotalAngle);
-            var offsetr = innerRadius == 0 ? 0 : ((margin / (TotalAngle * innerRadius)) * TotalAngle);
+            var offsetR = outerRadius == 0 ? 0 : ((margin / (RadialHelpers.TotalAngle * outerRadius)) * RadialHelpers.TotalAngle);
+            var offsetr = innerRadius == 0 ? 0 : ((margin / (RadialHelpers.TotalAngle * innerRadius)) * RadialHelpers.TotalAngle);
 
             // get the points
-            var a = GetCirclePoint(outerRadius, startAngle + offsetR);
-            var b = GetCirclePoint(outerRadius, endAngle - offsetR);
-            var c = GetCirclePoint(innerRadius, endAngle - offsetr);
-            var d = GetCirclePoint(innerRadius, startAngle + offsetr);
+            var a = RadialHelpers.GetCirclePoint(outerRadius, startAngle + offsetR);
+            var b = RadialHelpers.GetCirclePoint(outerRadius, endAngle - offsetR);
+            var c = RadialHelpers.GetCirclePoint(innerRadius, endAngle - offsetr);
+            var d = RadialHelpers.GetCirclePoint(innerRadius, startAngle + offsetr);
 
             // add the points to the path
             path.MoveTo(a);

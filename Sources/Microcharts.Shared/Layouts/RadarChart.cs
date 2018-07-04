@@ -21,41 +21,29 @@ namespace Microcharts
 
         public float BorderLineSize { get; set; } = 2;
 
+        public bool ShowLabels { get; set; }
+
+        public bool ShowCenterBars { get; set; }
+
         public override void DrawContent(SKCanvas canvas, int width, int height)
         {
             var total = this.Entries.Count();
 
             if (total > 0)
             {
-                var captionHeight = this.Entries.Max(x =>
-                {
-                    var result = 0.0f;
+                var captionHeight =
+                    this.ShowLabels
+                        ? this.Entries.Max(x => this.GetCaptionHeight(x))
+                        : 0;
 
-                    var hasLabel = !string.IsNullOrEmpty(x.Label);
-                    var hasValueLabel = !string.IsNullOrEmpty(x.ValueLabel);
-                    if (hasLabel || hasValueLabel)
-                    {
-                        var hasOffset = hasLabel && hasValueLabel;
-                        var captionMargin = this.LabelTextSize * 0.60f;
-                        result += hasOffset ? captionMargin : 0;
+                var captionWidth =
+                    this.ShowLabels
+                        ? this.Entries.Max(x => this.GetCaptionWidth(x))
+                        : 0;
 
-                        if (hasLabel)
-                        {
-                            result += this.LabelTextSize;
-                        }
+                var center = new SKPoint((float)width / 2, (float)height / 2);
 
-                        if (hasValueLabel)
-                        {
-                            result += this.LabelTextSize;
-                        }
-                    }
-
-                    return result;
-                });
-
-                var center = new SKPoint((float)width/2, (float)height/2);
-
-                var radius = (Math.Min(width, height) - 2 * this.Margin) / 2 - captionHeight;
+                var radius = ((Math.Min(width, height) - (2 * this.Margin)) / 2) - (captionHeight >= captionWidth ? captionHeight : captionWidth);
 
                 var angle = 0f;
                 var sectorAngle = 360f / total;
@@ -66,17 +54,86 @@ namespace Microcharts
                 foreach (var entry in this.Entries)
                 {
                     var normalizedValue = entry.Value - this.MinValue;
-                    radialPoints.Add(new RadialPoint(center, normalizedValue / normalizedMax, radius , angle, sectorAngle, entry));
+                    radialPoints.Add(new RadialPoint(center, normalizedValue / normalizedMax, radius, angle, sectorAngle, entry));
                     angle += sectorAngle;
                 }
                 
                 this.DrawBorder(canvas, center, radius);
                 this.DrawLine(canvas, radialPoints, center);
-                this.DrawCircles(canvas, radialPoints, center);
+                this.DrawCircles(canvas, radialPoints, center, radius, 1.0f);
                 this.DrawPoints(canvas, radialPoints);
-                this.DrawCenterBars(canvas, radialPoints, center);
+                if (this.ShowCenterBars)
+                {
+                    this.DrawCenterBars(canvas, radialPoints, center);
+                }
                 this.DrawArea(canvas, radialPoints, center);
-                this.DrawLabels(canvas, radialPoints, center, radius);
+                if (this.ShowLabels)
+                {
+                    this.DrawLabels(canvas, radialPoints, center, radius);
+                }
+            }
+        }
+
+        private float GetCaptionHeight(Entry x)
+        {
+            var result = 0.0f;
+
+            var hasLabel = !string.IsNullOrEmpty(x.Label);
+            var hasValueLabel = !string.IsNullOrEmpty(x.ValueLabel);
+            if (hasLabel || hasValueLabel)
+            {
+                var hasOffset = hasLabel && hasValueLabel;
+                var captionMargin = this.LabelTextSize * 0.60f;
+                result += hasOffset ? captionMargin : 0;
+
+                if (hasLabel)
+                {
+                    result += this.LabelTextSize;
+                }
+
+                if (hasValueLabel)
+                {
+                    result += this.LabelTextSize;
+                }
+            }
+
+            return result;
+        }
+
+        private float GetCaptionWidth(Entry x)
+        {
+            using (var paint = new SKPaint
+                               {
+                                   TextSize = this.LabelTextSize,
+                                   IsAntialias = true,
+                                   IsStroke = false
+                               })
+            {
+                var result = 0.0f;
+
+                var hasLabel = !string.IsNullOrEmpty(x.Label);
+                var hasValueLabel = !string.IsNullOrEmpty(x.ValueLabel);
+
+                if (hasLabel || hasValueLabel)
+                {
+                    result += this.LabelTextSize * 0.6f;
+                    var bounds = new SKRect();
+
+                    if (hasLabel)
+                    {
+                        var text = x.Label;
+                        paint.MeasureText(text, ref bounds);
+                        result += bounds.Width;
+                    }
+
+                    if (hasValueLabel)
+                    {
+                        var text = x.ValueLabel;
+                        paint.MeasureText(text, ref bounds);
+                        result += bounds.Width;
+                    }
+                }
+                return result;
             }
         }
 
@@ -98,8 +155,10 @@ namespace Microcharts
         {
             foreach (var point in radialPoints)
             {
-                var labelPoint = RadialPoint.GetPoint(center, point.CorrectedAngle,
-                    radius + this.LabelTextSize + (this.PointSize / 2));
+                var labelPoint = RadialPoint.GetPoint(
+                                                      center,
+                                                      point.CorrectedAngle,
+                                                      radius + this.LabelTextSize + (this.PointSize / 2));
                 var alignment = SKTextAlign.Right;
 
                 if ((Math.Abs(point.CorrectedAngle + 90) < RadarChart.Epsilon) || (Math.Abs(point.CorrectedAngle - 90) < RadarChart.Epsilon))
@@ -111,8 +170,14 @@ namespace Microcharts
                     alignment = SKTextAlign.Left;
                 }
 
-                canvas.DrawCaptionLabels(point.Entry.Label, point.Entry.TextColor, point.Entry.ValueLabel, point.Entry.Color,
-                    this.LabelTextSize, labelPoint, alignment);
+                canvas.DrawCaptionLabels(
+                                         point.Entry.Label,
+                                         point.Entry.TextColor,
+                                         point.Entry.ValueLabel,
+                                         point.Entry.Color,
+                                         this.LabelTextSize,
+                                         labelPoint,
+                                         alignment);
             }
         }
 
@@ -124,20 +189,37 @@ namespace Microcharts
             }
         }
 
-        private void DrawCircles(SKCanvas canvas, IEnumerable<RadialPoint> radialPoints, SKPoint center)
+        private void DrawCircles(
+            SKCanvas canvas,
+            IEnumerable<RadialPoint> radialPoints,
+            SKPoint center,
+            float radius,
+            float? drawInterval = null)
         {
+            var normalizedMax = this.MaxValue - this.MinValue;
             using (var paint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = this.BorderLineSize,
                 Color = this.BorderLineColor,
-                PathEffect = SKPathEffect.CreateDash(new[] {this.BorderLineSize, this.BorderLineSize * 2}, 0),
+                PathEffect = SKPathEffect.CreateDash(new[] { this.BorderLineSize, this.BorderLineSize * 2 }, 0),
                 IsAntialias = true,
             })
             {
-                foreach (var valueRadius in radialPoints.Select(x => x.ValueRadius).Distinct())
+                if (drawInterval.HasValue)
                 {
-                    canvas.DrawCircle(center, valueRadius, paint);
+                    for (var value = this.MinValue; value <= this.MaxValue; value += drawInterval.Value)
+                    {
+                        var normalizedValue = value - this.MinValue;
+                        canvas.DrawCircle(center, RadialPoint.CalculateValueRadius(normalizedValue / normalizedMax, radius), paint);
+                    }
+                }
+                else
+                {
+                    foreach (var valueRadius in radialPoints.Select(x => x.ValueRadius).Distinct())
+                    {
+                        canvas.DrawCircle(center, valueRadius, paint);
+                    }
                 }
             }
         }
@@ -187,9 +269,12 @@ namespace Microcharts
             {
                 foreach (var radialPoint in radialPoints)
                 {
-                    canvas.DrawGradientLine(center, radialPoint.Entry.Color.WithAlpha(0), radialPoint.Point,
-                        radialPoint.Entry.Color.WithAlpha((byte) (radialPoint.Entry.Color.Alpha * 0.75f)),
-                        this.LineSize);
+                    canvas.DrawGradientLine(
+                                            center,
+                                            radialPoint.Entry.Color.WithAlpha(0),
+                                            radialPoint.Point,
+                                            radialPoint.Entry.Color.WithAlpha((byte)(radialPoint.Entry.Color.Alpha * 0.75f)),
+                                            this.LineSize);
                     canvas.DrawLine(radialPoint.Point, radialPoint.BorderPoint, paint);
                 }
             }

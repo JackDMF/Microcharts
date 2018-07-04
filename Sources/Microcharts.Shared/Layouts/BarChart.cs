@@ -10,7 +10,6 @@ namespace Microcharts
 
     /// <summary>
     /// ![chart](../images/Bar.png)
-    /// 
     /// A bar chart.
     /// </summary>
     public class BarChart : PointChart
@@ -44,11 +43,11 @@ namespace Microcharts
         /// <param name="height">The height of the chart.</param>
         public override void DrawContent(SKCanvas canvas, int width, int height)
         {
-            var valueLabelSizes = MeasureValueLabels();
-            var footerHeight = CalculateFooterHeight(valueLabelSizes);
-            var headerHeight = CalculateHeaderHeight(valueLabelSizes);
-            var itemSize = CalculateItemSize(width, height, footerHeight, headerHeight);
-            var origin = CalculateYOrigin(itemSize.Height, headerHeight);
+            var valueLabelSizes = this.MeasureValueLabels();
+            var footerHeight = this.CalculateFooterHeight(valueLabelSizes);
+            var headerHeight = this.CalculateHeaderHeight(valueLabelSizes);
+            var itemSize = this.CalculateItemSize(width, height, footerHeight, headerHeight);
+            var origin = this.CalculateYOrigin(itemSize.Height, headerHeight);
             var points = this.CalculatePoints(itemSize, origin, headerHeight);
 
             this.DrawBarAreas(canvas, points, itemSize, headerHeight);

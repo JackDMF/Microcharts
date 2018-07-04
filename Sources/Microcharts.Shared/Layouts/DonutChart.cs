@@ -10,7 +10,6 @@ namespace Microcharts
 
     /// <summary>
     /// ![chart](../images/Donut.png)
-    /// 
     /// A donut chart.
     /// </summary>
     public class DonutChart : Chart
@@ -34,7 +33,7 @@ namespace Microcharts
             {
                 canvas.Translate(width / 2, height / 2);
                 var sumValue = this.Entries.Sum(x => Math.Abs(x.Value));
-                var radius = (Math.Min(width, height) - (2 * Margin)) / 2;
+                var radius = (Math.Min(width, height) - (2 * this.Margin)) / 2;
 
                 var start = 0.0f;
                 for (int i = 0; i < this.Entries.Count(); i++)

@@ -10,7 +10,6 @@ namespace Microcharts
 
     /// <summary>
     /// ![chart](../images/Point.png)
-    /// 
     /// Point chart.
     /// </summary>
     public class PointChart : Chart
@@ -129,7 +128,7 @@ namespace Microcharts
 
         protected void DrawPoints(SKCanvas canvas, SKPoint[] points)
         {
-            if (points.Length > 0 && PointMode != PointMode.None)
+            if (points.Length > 0 && this.PointMode != PointMode.None)
             {
                 for (int i = 0; i < points.Length; i++)
                 {

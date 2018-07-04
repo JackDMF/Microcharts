@@ -8,7 +8,6 @@ namespace Microcharts
 
     /// <summary>
     /// ![chart](../images/Line.png)
-    /// 
     /// Line chart.
     /// </summary>
     public class LineChart : PointChart
@@ -48,11 +47,11 @@ namespace Microcharts
 
         public override void DrawContent(SKCanvas canvas, int width, int height)
         {
-            var valueLabelSizes = MeasureValueLabels();
-            var footerHeight = CalculateFooterHeight(valueLabelSizes);
-            var headerHeight = CalculateHeaderHeight(valueLabelSizes);
-            var itemSize = CalculateItemSize(width, height, footerHeight, headerHeight);
-            var origin = CalculateYOrigin(itemSize.Height, headerHeight);
+            var valueLabelSizes = this.MeasureValueLabels();
+            var footerHeight = this.CalculateFooterHeight(valueLabelSizes);
+            var headerHeight = this.CalculateHeaderHeight(valueLabelSizes);
+            var itemSize = this.CalculateItemSize(width, height, footerHeight, headerHeight);
+            var origin = this.CalculateYOrigin(itemSize.Height, headerHeight);
             var points = this.CalculatePoints(itemSize, origin, headerHeight);
 
             this.DrawArea(canvas, points, itemSize, origin);
